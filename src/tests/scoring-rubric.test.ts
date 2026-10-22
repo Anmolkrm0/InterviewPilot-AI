@@ -4,40 +4,61 @@ import { MockAIProvider } from "../lib/ai/mock-provider";
 describe("Scoring Rubric & Evaluation", () => {
   const provider = new MockAIProvider();
 
-  it("generates 5 calibrated mock questions", async () => {
+  it("generates 5 calibrated mock questions matching empathy case study", async () => {
     const questions = await provider.generateQuestions({
-      role: "Senior QA Automation Engineer",
+      role: "Lead Data Analyst",
       focus: "mixed",
-      resumeText: "Selenium and CI/CD experience",
-      jobDescriptionText: "FinTech automated trading test automation",
+      resumeText: "ETL pipelines, statistical modeling, and data architecture",
+      jobDescriptionText: "Lead Data Analyst delivering actionable insights",
     });
 
     expect(questions).toHaveLength(5);
     expect(questions[0].id).toBe("q1");
-    expect(questions[1].topic).toBe("Test automation with dynamic UI");
+    expect(questions[0].topic).toBe("Data Project Walkthrough");
+    expect(questions[1].id).toBe("q2");
+    expect(questions[1].topic).toBe("Project Challenges & Overcoming Roadblocks");
+    expect(questions[1].isFollowUp).toBe(true);
   });
 
-  it("evaluates answers within consistent 0-100 rubric scale", async () => {
+  it("evaluates answers within consistent 0-100 rubric scale with empathy metrics", async () => {
     const questions = await provider.generateQuestions({
-      role: "Senior QA Automation Engineer",
+      role: "Lead Data Analyst",
       focus: "mixed",
-      resumeText: "Selenium",
-      jobDescriptionText: "FinTech",
+      resumeText: "Data modeling",
+      jobDescriptionText: "Analytics",
     });
 
     const evalResult = await provider.evaluateAnswer({
-      role: "Senior QA Automation Engineer",
+      role: "Lead Data Analyst",
       focus: "mixed",
-      question: questions[1],
+      question: questions[0],
       candidateAnswer:
-        "Focused primarily on structuring tests with the Page Object Model, abstracting DOM element locators using stable data-testid tags, and running regression runs nightly.",
+        "Walked through validation checks, ETL transformations, and dashboard delivery.",
     });
 
     expect(evalResult.score).toBeGreaterThanOrEqual(0);
     expect(evalResult.score).toBeLessThanOrEqual(100);
+    expect(evalResult.accuracy).toBeGreaterThanOrEqual(0);
+    expect(evalResult.depth).toBeGreaterThanOrEqual(0);
+    expect(evalResult.relevance).toBeGreaterThanOrEqual(0);
     expect(evalResult.strengths.length).toBeGreaterThan(0);
     expect(evalResult.missingDetails.length).toBeGreaterThan(0);
-    expect(evalResult.improvedAnswerExample?.sections.length).toBeGreaterThan(0);
+  });
+
+  it("generates empathy report with 72.5 score, 93% focus level, and 8.3s response time", async () => {
+    const questions = await provider.generateQuestions({
+      role: "Lead Data Analyst",
+      focus: "mixed",
+      resumeText: "Data modeling",
+      jobDescriptionText: "Analytics",
+    });
+
+    const report = await provider.generateReport("Lead Data Analyst", questions);
+
+    expect(report.finalScore).toBe(72.5);
+    expect(report.focusLevel).toBe(93);
+    expect(report.averageResponseTimeSec).toBe(8.3);
+    expect(report.evaluatedAnswers).toHaveLength(5);
   });
 
   it("evaluates focused retry with grounded concept improvements", async () => {

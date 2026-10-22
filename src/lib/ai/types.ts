@@ -5,6 +5,9 @@ export type InterviewFocus = "technical" | "behavioral" | "mixed";
 export interface AnswerEvaluation {
   score: number; // 0 - 100
   statusTag?: string; // "Needs Attention", "Solid Execution", "Exemplary"
+  accuracy?: number; // 0 - 50%
+  depth?: number; // 0 - 30%
+  relevance?: number; // 0 - 20%
   strengths: string[];
   missingDetails: string[];
   improvementSuggestions: string[];
@@ -24,6 +27,7 @@ export interface InterviewQuestion {
   prompt: string;
   topic: string;
   skillTags: string[];
+  isFollowUp?: boolean;
   personaTitle?: string;
   targetFocalPoints?: string;
   answer?: string;
@@ -37,6 +41,9 @@ export interface InterviewQuestion {
 
 export interface PracticeReport {
   overallScore: number;
+  finalScore?: number; // e.g. 72.5
+  focusLevel?: number; // e.g. 93%
+  averageResponseTimeSec?: number; // e.g. 8.3s
   peerMedianDelta: number;
   competencyConfidence: number;
   strongestArea: {
