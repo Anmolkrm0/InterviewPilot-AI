@@ -4,17 +4,19 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Edit3,
   Mic,
-  Square,
+  MicOff,
   CheckCircle2,
   ArrowRight,
   SkipForward,
   Bookmark,
   BookmarkCheck,
   Loader2,
-  Radio,
-  Sparkles,
+  AlertCircle,
+  SlidersHorizontal,
+  Volume2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatTechnicalSpeech } from "@/lib/technical-speech-formatter";
 
 interface ResponseInputProps {
   initialAnswer?: string;
@@ -38,12 +40,16 @@ export function ResponseInput({
   const [answer, setAnswer] = useState(initialAnswer);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
-  // Audio Recording States
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  // Dictation Engine States
+  const [engineMode, setEngineMode] = useState<"browser" | "whisper">("browser");
+  const [isListening, setIsListening] = useState(false);
+  const [interimText, setInterimText] = useState("");
+  const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [transcriptionNotice, setTranscriptionNotice] = useState<string | null>(null);
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
 
+  // References
+  const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,85 +58,159 @@ export function ResponseInput({
     setAnswer(initialAnswer);
   }, [initialAnswer]);
 
-  // Clean up timer on unmount
+  // Setup Web Speech API on mount
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        setHasSpeechSupport(true);
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: any) => {
+          let currentInterim = "";
+          let currentFinal = "";
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              currentFinal += transcript;
+            } else {
+              currentInterim += transcript;
+            }
+          }
+
+          setInterimText(currentInterim);
+
+          if (currentFinal.trim()) {
+            const formatted = formatTechnicalSpeech(currentFinal.trim());
+            setAnswer((prev) => {
+              if (!prev || !prev.trim()) return formatted;
+              const needsSpace = !prev.endsWith(" ") && !prev.endsWith("\n");
+              return `${prev}${needsSpace ? " " : ""}${formatted}`;
+            });
+            setInterimText("");
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("Speech recognition notice:", event.error);
+          if (event.error === "not-allowed") {
+            setStatusNotice("Microphone access was denied. Please allow microphone permissions.");
+          }
+          setIsListening(false);
+          setInterimText("");
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          setInterimText("");
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
     return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
   }, []);
 
-  const startRecording = async () => {
-    setTranscriptionNotice(null);
+  // 1. Toggle Browser Real-Time Speech Recognition
+  const toggleBrowserListening = () => {
+    setStatusNotice(null);
+    if (!recognitionRef.current) {
+      setStatusNotice("Browser speech recognition is not supported in this browser. Try Chrome or Edge.");
+      return;
+    }
+
+    if (isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsListening(false);
+      setInterimText("");
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    } else {
+      try {
+        setRecordingSeconds(0);
+        recognitionRef.current.start();
+        setIsListening(true);
+        setStatusNotice("Listening to your voice... Speak naturally.");
+        timerIntervalRef.current = setInterval(() => {
+          setRecordingSeconds((prev) => prev + 1);
+        }, 1000);
+      } catch (err: unknown) {
+        setIsListening(false);
+        const msg = err instanceof Error ? err.message : "Error starting microphone.";
+        setStatusNotice(msg);
+      }
+    }
+  };
+
+  // 2. Toggle Whisper Neural Audio Recording
+  const startWhisperRecording = async () => {
+    setStatusNotice(null);
     audioChunksRef.current = [];
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Microphone access is not supported in this browser.");
-      }
-
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
         : "audio/webm";
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+        if (event.data && event.data.size > 0) audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
-        // Stop audio tracks to release microphone
         stream.getTracks().forEach((track) => track.stop());
-
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        if (audioBlob.size > 500) {
-          await transcribeAudioBlob(audioBlob);
-        }
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        await handleWhisperUpload(blob);
       };
 
-      mediaRecorder.start(250); // Collect data chunks every 250ms
-      setIsRecording(true);
+      mediaRecorder.start(250);
+      setIsListening(true);
       setRecordingSeconds(0);
-
       timerIntervalRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to access microphone.";
-      setTranscriptionNotice(`Microphone error: ${msg}`);
-      setIsRecording(false);
+      const msg = err instanceof Error ? err.message : "Microphone error.";
+      setStatusNotice(`Cannot record audio: ${msg}`);
+      setIsListening(false);
     }
   };
 
-  const stopRecording = () => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
+  const stopWhisperRecording = () => {
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
-
-    setIsRecording(false);
+    setIsListening(false);
   };
 
-  const transcribeAudioBlob = async (blob: Blob) => {
-    setIsTranscribing(true);
-
+  const handleWhisperUpload = async (blob: Blob) => {
+    setStatusNotice("Transcribing audio with Whisper AI...");
     try {
       const formData = new FormData();
       formData.append("audio", blob, "recording.webm");
@@ -144,20 +224,27 @@ export function ResponseInput({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Transcription failed.");
+        throw new Error(data.error || "Whisper transcription failed.");
       }
 
-      const transcribedText = data.text?.trim();
-      if (transcribedText) {
-        setAnswer((prev) => (prev ? `${prev} ${transcribedText}` : transcribedText));
-        setTranscriptionNotice(`Transcribed with high accuracy (${data.provider || "Neural STT"})`);
-        setTimeout(() => setTranscriptionNotice(null), 4000);
+      const text = data.text?.trim();
+      if (text) {
+        setAnswer((prev) => (prev ? `${prev} ${text}` : text));
+        setStatusNotice(`Transcribed via ${data.provider}`);
+        setTimeout(() => setStatusNotice(null), 3000);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Transcription error.";
-      setTranscriptionNotice(`Notice: ${msg}`);
-    } finally {
-      setIsTranscribing(false);
+      const msg = err instanceof Error ? err.message : "Error transcribing.";
+      setStatusNotice(msg);
+    }
+  };
+
+  const handleMainMicClick = () => {
+    if (engineMode === "browser") {
+      toggleBrowserListening();
+    } else {
+      if (isListening) stopWhisperRecording();
+      else startWhisperRecording();
     }
   };
 
@@ -166,51 +253,94 @@ export function ResponseInput({
 
   return (
     <div className="rounded-card border border-border bg-surface p-6 shadow-xs transition-colors">
-      {/* Response Header with High-Accuracy Neural Recording */}
-      <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* Response Header */}
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
           <Edit3 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-bold text-text">Your Response</h2>
         </div>
 
-        {/* Neural STT Button */}
-        <div className="flex items-center gap-2">
-          {isRecording ? (
+        {/* Voice Dictation Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Mode Switcher */}
+          <div className="flex items-center rounded-lg border border-border bg-surface-muted/50 p-0.5 text-2xs font-semibold text-text-muted">
             <button
               type="button"
-              onClick={stopRecording}
-              className="inline-flex items-center gap-2 rounded-full bg-danger px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-danger/90 animate-pulse transition-all"
+              onClick={() => {
+                if (isListening) toggleBrowserListening();
+                setEngineMode("browser");
+              }}
+              className={cn(
+                "rounded-md px-2 py-1 transition-all",
+                engineMode === "browser"
+                  ? "bg-surface text-primary shadow-xs font-bold"
+                  : "hover:text-text"
+              )}
             >
-              <Square className="h-3.5 w-3.5 fill-white" />
-              <span>
-                Stop Recording ({Math.floor(recordingSeconds / 60)}:
-                {recordingSeconds % 60 < 10 ? "0" : ""}
-                {recordingSeconds % 60})
-              </span>
+              Real-Time Dictation
             </button>
-          ) : isTranscribing ? (
-            <div className="inline-flex items-center gap-2 rounded-full bg-surface-blue px-3.5 py-1.5 text-xs font-semibold text-primary border border-primary/20">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Transcribing with Neural AI...</span>
-            </div>
-          ) : (
             <button
               type="button"
-              onClick={startRecording}
-              className="inline-flex items-center gap-1.5 rounded-full bg-surface-blue px-3.5 py-1 text-xs font-semibold text-primary border border-primary/25 hover:bg-primary hover:text-white transition-all shadow-2xs group"
+              onClick={() => {
+                if (isListening) toggleBrowserListening();
+                setEngineMode("whisper");
+              }}
+              className={cn(
+                "rounded-md px-2 py-1 transition-all",
+                engineMode === "whisper"
+                  ? "bg-surface text-primary shadow-xs font-bold"
+                  : "hover:text-text"
+              )}
             >
-              <Radio className="h-3.5 w-3.5 text-success group-hover:text-white animate-pulse" />
-              <Mic className="h-3.5 w-3.5" />
-              <span>High-Accuracy Voice Dictation</span>
+              Whisper AI
             </button>
-          )}
+          </div>
+
+          {/* Primary Mic Trigger Button */}
+          <button
+            type="button"
+            onClick={handleMainMicClick}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold transition-all border shadow-2xs",
+              isListening
+                ? "bg-danger text-white border-danger animate-pulse shadow-danger/20"
+                : "bg-surface-blue text-primary border-primary/25 hover:bg-primary hover:text-white"
+            )}
+          >
+            {isListening ? (
+              <>
+                <MicOff className="h-3.5 w-3.5" />
+                <span>
+                  Listening... ({Math.floor(recordingSeconds / 60)}:
+                  {recordingSeconds % 60 < 10 ? "0" : ""}
+                  {recordingSeconds % 60})
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+                <Mic className="h-3.5 w-3.5" />
+                <span>{engineMode === "browser" ? "Voice Dictation Ready" : "Record with Whisper"}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
-      {transcriptionNotice && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg bg-surface-muted/80 px-3 py-1.5 text-xs text-text-secondary border border-border">
-          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
-          <span>{transcriptionNotice}</span>
+      {/* Live Interim Speech Preview (shows actual speech being recognized live) */}
+      {isListening && interimText && (
+        <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-surface-blue/60 p-2.5 text-xs text-primary border border-primary/20 animate-fade-in">
+          <Volume2 className="h-4 w-4 shrink-0 animate-bounce" />
+          <span className="font-semibold text-text-secondary">Hearing: </span>
+          <span className="italic font-medium text-text truncate">"{interimText}"</span>
+        </div>
+      )}
+
+      {/* Status Notice */}
+      {statusNotice && (
+        <div className="mb-2.5 flex items-center gap-2 rounded-lg bg-surface-muted px-3 py-1.5 text-xs text-text-secondary border border-border">
+          <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span>{statusNotice}</span>
         </div>
       )}
 
@@ -220,7 +350,7 @@ export function ResponseInput({
           rows={7}
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Speak using high-accuracy neural voice dictation above or type your structured response..."
+          placeholder="Speak using real-time voice dictation above or type your structured technical response here..."
           className="w-full rounded-xl border border-border bg-surface p-4 text-sm sm:text-base text-text placeholder:text-text-muted/60 focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary/40 leading-relaxed transition-colors resize-y"
         />
       </div>

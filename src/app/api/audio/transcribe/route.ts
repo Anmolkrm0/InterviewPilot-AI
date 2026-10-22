@@ -154,26 +154,16 @@ Output ONLY the clean transcription text, without introductory notes, markdown q
       }
     }
 
-    // 4. Calibrated neural transcription fallback for offline development or when no STT key is configured
-    const simulatedTranscriptions: Record<string, string> = {
-      default:
-        "I would implement the Page Object Model (POM) pattern to isolate UI locators from test logic. To handle dynamic IDs and frequent DOM updates, I prefer data-testid attributes or stable ARIA roles rather than brittle XPaths. I also integrate Playwright or Selenium with explicit dynamic waits to account for asynchronous component hydration, backed by automated visual regression checks for structural integrity.",
-      q1:
-        "When evaluating Selenium versus Playwright, the primary distinction is the underlying communication protocol. Playwright uses bidirectional WebSocket connections over the Chrome DevTools Protocol (CDP), enabling native event listening and auto-waiting mechanisms. In contrast, traditional Selenium relies on HTTP JSON wire protocol polling, which introduces latency and increases test flakiness.",
-      q2:
-        "I decouple locator catalogs from execution steps using autonomous Page Component models. Locators default to custom semantic telemetry attributes like data-testid or data-qa, backed by visual baseline snapshots. In CI/CD, if tests fail due to race conditions or shadow DOM delays, we isolate them to a quarantine suite rather than halting releases.",
-    };
-
-    const simulatedText =
-      simulatedTranscriptions[questionTopic.toLowerCase()] ||
-      simulatedTranscriptions.default;
-
-    return NextResponse.json({
-      success: true,
-      text: simulatedText,
-      provider: "high-accuracy-neural-model",
-      note: "Using calibrated high-accuracy technical speech model. Set GROQ_API_KEY, OPENAI_API_KEY, or AI_API_KEY for live model inference.",
-    });
+    // If no hosted STT API key is configured
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "No hosted speech-to-text API key is configured. Please configure GROQ_API_KEY (Groq Whisper), OPENAI_API_KEY (OpenAI Whisper), or GEMINI_API_KEY in .env.local, or use real-time browser voice dictation.",
+        requiresKey: true,
+      },
+      { status: 503 }
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to transcribe audio.";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
