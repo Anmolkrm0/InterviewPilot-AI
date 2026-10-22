@@ -56,7 +56,9 @@ export function ResponseInput({
 
   useEffect(() => {
     setAnswer(initialAnswer);
-  }, [initialAnswer]);
+    setInterimText("");
+    setStatusNotice(null);
+  }, [initialAnswer, questionTopic]);
 
   // Setup Web Speech API on mount
   useEffect(() => {

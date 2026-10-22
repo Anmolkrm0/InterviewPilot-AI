@@ -165,10 +165,9 @@ export function EvaluatedAnswerCard({
           </span>
         </div>
         <p className="text-xs sm:text-sm italic text-text leading-relaxed">
-          “
-          {question.answer ||
-            "Focused primarily on structuring tests with the Page Object Model, abstracting DOM element locators using stable data-testid tags, and running regression runs nightly."}
-          ”
+          {question.answer
+            ? `“${question.answer}”`
+            : "(No answer submitted for this question — skipped)"}
         </p>
       </div>
 

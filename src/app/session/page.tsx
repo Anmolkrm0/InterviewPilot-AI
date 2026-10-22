@@ -259,6 +259,7 @@ export default function SessionPage() {
 
           {/* Candidate Response Card */}
           <ResponseInput
+            key={currentQuestion.id || `q-${currentIdx}`}
             initialAnswer={currentQuestion.answer || ""}
             isLastQuestion={isLastQuestion}
             role={session.role}

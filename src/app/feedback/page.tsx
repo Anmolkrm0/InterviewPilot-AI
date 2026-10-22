@@ -283,33 +283,44 @@ export default function FeedbackPage() {
             />
           ) : (
             <div className="space-y-4">
-              {/* Question 2 (Weakest - Recommended Focus) */}
-              <EvaluatedAnswerCard
-                key={questions[1]?.id || "q2"}
-                question={questions[1] || weakestQuestion}
-                index={1}
-                isWeakest={true}
-              />
-
-              {/* Question 1 (Solid Execution) */}
-              {questions[0] && (
+              {/* Highlighted Weakest Answer */}
+              {weakestQuestion && (
                 <EvaluatedAnswerCard
-                  key={questions[0].id || "q1"}
-                  question={questions[0]}
-                  index={0}
-                  isWeakest={false}
+                  key={weakestQuestion.id || `weakest-${weakestIndex}`}
+                  question={weakestQuestion}
+                  index={weakestIndex}
+                  isWeakest={true}
                 />
               )}
 
-              {/* Questions 3, 4, 5 collapsible block */}
+              {/* Second Evaluated Question */}
+              {questions
+                .map((q, idx) => ({ q, idx }))
+                .filter(({ idx }) => idx !== weakestIndex)
+                .slice(0, 1)
+                .map(({ q, idx }) => (
+                  <EvaluatedAnswerCard
+                    key={q.id || `other-${idx}`}
+                    question={q}
+                    index={idx}
+                    isWeakest={false}
+                  />
+                ))}
+
+              {/* Remaining Answers Collapsible Block */}
               {questions.length > 2 && (
                 <div className="rounded-card border border-border bg-surface p-4 shadow-xs transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-text">
                       <ListFilter className="h-4 w-4 text-primary" />
                       <span>
-                        3 Other Answers Logged: Q3 ({questions[2]?.evaluation?.score ?? 78}%) • Q4 (
-                        {questions[3]?.evaluation?.score ?? 81}%) • Q5 ({questions[4]?.evaluation?.score ?? 71}%)
+                        {questions.length - 2} Other Answers Logged:{" "}
+                        {questions
+                          .map((q, idx) => ({ q, idx }))
+                          .filter(({ idx }) => idx !== weakestIndex)
+                          .slice(1)
+                          .map(({ q, idx }) => `Q${idx + 1} (${q.evaluation?.score ?? 75}%)`)
+                          .join(" • ")}
                       </span>
                     </div>
 
@@ -329,14 +340,18 @@ export default function FeedbackPage() {
 
                   {expandAllRemaining && (
                     <div className="mt-4 space-y-4 pt-4 border-t border-border">
-                      {questions.slice(2).map((q, idx) => (
-                        <EvaluatedAnswerCard
-                          key={q.id || idx + 2}
-                          question={q}
-                          index={idx + 2}
-                          isWeakest={false}
-                        />
-                      ))}
+                      {questions
+                        .map((q, idx) => ({ q, idx }))
+                        .filter(({ idx }) => idx !== weakestIndex)
+                        .slice(1)
+                        .map(({ q, idx }) => (
+                          <EvaluatedAnswerCard
+                            key={q.id || `remaining-${idx}`}
+                            question={q}
+                            index={idx}
+                            isWeakest={false}
+                          />
+                        ))}
                     </div>
                   )}
                 </div>
