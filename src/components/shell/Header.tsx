@@ -9,6 +9,11 @@ import { ThemeToggle } from "./ThemeToggle";
 export function Header() {
   const pathname = usePathname();
 
+  // Hide header during live interview session and feedback for full immersion
+  if (pathname === "/session" || pathname === "/feedback") {
+    return null;
+  }
+
   const navItems = [
     { name: "Setup", href: "/" },
     { name: "Live Session", href: "/session" },

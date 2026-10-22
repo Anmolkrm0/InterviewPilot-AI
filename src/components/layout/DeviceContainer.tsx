@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Smartphone, Monitor, Wifi, Battery } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 interface DeviceContainerProps {
   children: React.ReactNode;
@@ -31,42 +32,46 @@ export function DeviceContainer({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F0EEF9] flex flex-col items-center">
-      {/* Device Viewport Toggle (Desktop Only) */}
+    <div className="min-h-screen bg-[#F0EEF9] dark:bg-zinc-950 flex flex-col items-center">
+      {/* Device Viewport Toggle & Theme Selector (Desktop Only) */}
       {allowToggle && (
-        <div className="hidden md:flex items-center gap-1.5 fixed top-3 right-4 z-50 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-full shadow-md border border-border">
-          <button
-            type="button"
-            onClick={() => setMode("mobile")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer",
-              mode === "mobile"
-                ? "bg-primary text-white shadow-xs"
-                : "text-text-muted hover:text-text hover:bg-surface-muted"
-            )}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            <span>Mobile View</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("web")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer",
-              mode === "web"
-                ? "bg-primary text-white shadow-xs"
-                : "text-text-muted hover:text-text hover:bg-surface-muted"
-            )}
-          >
-            <Monitor className="h-3.5 w-3.5" />
-            <span>Web View</span>
-          </button>
+        <div className="hidden md:flex items-center gap-2 fixed top-4 right-6 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-border">
+          <div className="flex items-center gap-1 bg-surface-muted/80 p-0.5 rounded-full">
+            <button
+              type="button"
+              onClick={() => setMode("mobile")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer",
+                mode === "mobile"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-text-muted hover:text-text"
+              )}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>Mobile View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("web")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer",
+                mode === "web"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-text-muted hover:text-text"
+              )}
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              <span>Web View</span>
+            </button>
+          </div>
+          <div className="h-4 w-px bg-border mx-0.5" />
+          <ThemeToggle />
         </div>
       )}
 
       {/* Container Rendering */}
       {mode === "mobile" ? (
-        <div className="w-full flex justify-center items-center py-0 md:py-8">
+        <div className="w-full flex justify-center items-center py-0 md:py-8 min-h-screen">
           {/* Authentic Mobile chassis on desktop, full-width on mobile */}
           <div className="w-full max-w-[420px] md:h-[860px] md:max-h-[92vh] bg-surface flex flex-col md:rounded-[44px] md:border-[10px] md:border-[#1E1B2E] md:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] md:overflow-hidden relative">
             {/* iOS Status Bar & Dynamic Island (Desktop Frame Mode) */}
@@ -97,7 +102,7 @@ export function DeviceContainer({
         </div>
       ) : (
         /* Full Web View Mode */
-        <div className="w-full max-w-4xl min-h-screen bg-surface md:my-6 md:rounded-3xl md:border md:border-border md:shadow-lg flex flex-col overflow-hidden">
+        <div className="w-full max-w-5xl min-h-[92vh] bg-surface md:my-6 md:rounded-3xl md:border md:border-border md:shadow-lg flex flex-col overflow-hidden">
           {children}
         </div>
       )}
