@@ -261,6 +261,8 @@ export default function SessionPage() {
           <ResponseInput
             initialAnswer={currentQuestion.answer || ""}
             isLastQuestion={isLastQuestion}
+            role={session.role}
+            questionTopic={currentQuestion.topic}
             onSubmit={handleSubmitAnswer}
             onSkip={handleSkip}
             isLoading={isEvaluating}

@@ -4,19 +4,23 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Edit3,
   Mic,
-  MicOff,
+  Square,
   CheckCircle2,
   ArrowRight,
   SkipForward,
   Bookmark,
   BookmarkCheck,
   Loader2,
+  Radio,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ResponseInputProps {
   initialAnswer?: string;
   isLastQuestion: boolean;
+  questionTopic?: string;
+  role?: string;
   onSubmit: (answer: string) => void;
   onSkip: () => void;
   isLoading: boolean;
@@ -25,77 +29,135 @@ interface ResponseInputProps {
 export function ResponseInput({
   initialAnswer = "",
   isLastQuestion,
+  questionTopic = "Technical Architecture",
+  role = "Senior QA Automation Engineer",
   onSubmit,
   onSkip,
   isLoading,
 }: ResponseInputProps) {
   const [answer, setAnswer] = useState(initialAnswer);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
-  const recognitionRef = useRef<any>(null);
+
+  // Audio Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [transcriptionNotice, setTranscriptionNotice] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setAnswer(initialAnswer);
   }, [initialAnswer]);
 
-  // Speech Recognition initialization
+  // Clean up timer on unmount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-      if (SpeechRecognition) {
-        setHasSpeechSupport(true);
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-          let transcript = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          setAnswer((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
-        };
-
-        recognition.onerror = () => {
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-
     return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
   }, []);
 
-  const toggleListening = () => {
-    if (!recognitionRef.current) return;
+  const startRecording = async () => {
+    setTranscriptionNotice(null);
+    audioChunksRef.current = [];
 
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch {
-        setIsListening(false);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Microphone access is not supported in this browser.");
       }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : "audio/webm";
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Stop audio tracks to release microphone
+        stream.getTracks().forEach((track) => track.stop());
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size > 500) {
+          await transcribeAudioBlob(audioBlob);
+        }
+      };
+
+      mediaRecorder.start(250); // Collect data chunks every 250ms
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to access microphone.";
+      setTranscriptionNotice(`Microphone error: ${msg}`);
+      setIsRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+
+    setIsRecording(false);
+  };
+
+  const transcribeAudioBlob = async (blob: Blob) => {
+    setIsTranscribing(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", blob, "recording.webm");
+      formData.append("role", role);
+      formData.append("topic", questionTopic);
+
+      const res = await fetch("/api/audio/transcribe", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Transcription failed.");
+      }
+
+      const transcribedText = data.text?.trim();
+      if (transcribedText) {
+        setAnswer((prev) => (prev ? `${prev} ${transcribedText}` : transcribedText));
+        setTranscriptionNotice(`Transcribed with high accuracy (${data.provider || "Neural STT"})`);
+        setTimeout(() => setTranscriptionNotice(null), 4000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Transcription error.";
+      setTranscriptionNotice(`Notice: ${msg}`);
+    } finally {
+      setIsTranscribing(false);
     }
   };
 
@@ -104,39 +166,53 @@ export function ResponseInput({
 
   return (
     <div className="rounded-card border border-border bg-surface p-6 shadow-xs transition-colors">
-      {/* Response Header */}
-      <div className="mb-3 flex items-center justify-between">
+      {/* Response Header with High-Accuracy Neural Recording */}
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Edit3 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-bold text-text">Your Response</h2>
         </div>
 
-        {hasSpeechSupport && (
-          <button
-            type="button"
-            onClick={toggleListening}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all border",
-              isListening
-                ? "bg-danger-surface text-danger border-danger/30 animate-pulse"
-                : "bg-surface-muted text-text-secondary border-border hover:bg-surface-blue hover:text-primary"
-            )}
-          >
-            {isListening ? (
-              <>
-                <MicOff className="h-3.5 w-3.5" />
-                <span>Listening... Click to Stop</span>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 rounded-full bg-success" />
-                <Mic className="h-3.5 w-3.5 text-primary" />
-                <span>Voice Dictation Ready</span>
-              </>
-            )}
-          </button>
-        )}
+        {/* Neural STT Button */}
+        <div className="flex items-center gap-2">
+          {isRecording ? (
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="inline-flex items-center gap-2 rounded-full bg-danger px-4 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-danger/90 animate-pulse transition-all"
+            >
+              <Square className="h-3.5 w-3.5 fill-white" />
+              <span>
+                Stop Recording ({Math.floor(recordingSeconds / 60)}:
+                {recordingSeconds % 60 < 10 ? "0" : ""}
+                {recordingSeconds % 60})
+              </span>
+            </button>
+          ) : isTranscribing ? (
+            <div className="inline-flex items-center gap-2 rounded-full bg-surface-blue px-3.5 py-1.5 text-xs font-semibold text-primary border border-primary/20">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Transcribing with Neural AI...</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              className="inline-flex items-center gap-1.5 rounded-full bg-surface-blue px-3.5 py-1 text-xs font-semibold text-primary border border-primary/25 hover:bg-primary hover:text-white transition-all shadow-2xs group"
+            >
+              <Radio className="h-3.5 w-3.5 text-success group-hover:text-white animate-pulse" />
+              <Mic className="h-3.5 w-3.5" />
+              <span>High-Accuracy Voice Dictation</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {transcriptionNotice && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg bg-surface-muted/80 px-3 py-1.5 text-xs text-text-secondary border border-border">
+          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span>{transcriptionNotice}</span>
+        </div>
+      )}
 
       {/* Answer Textarea */}
       <div className="relative">
@@ -144,7 +220,7 @@ export function ResponseInput({
           rows={7}
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          placeholder="Speak or type your structured technical response here..."
+          placeholder="Speak using high-accuracy neural voice dictation above or type your structured response..."
           className="w-full rounded-xl border border-border bg-surface p-4 text-sm sm:text-base text-text placeholder:text-text-muted/60 focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary/40 leading-relaxed transition-colors resize-y"
         />
       </div>
