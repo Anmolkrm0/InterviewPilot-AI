@@ -14,38 +14,49 @@ export function EmpathyScoreHero({
   onSwipeUp,
   isExpanded = false,
 }: EmpathyScoreHeroProps) {
-  // Format score to 1 decimal place (e.g. 72.5) or integer if exact
   const displayScore = Number.isInteger(score) ? score.toFixed(1) : score.toString();
 
-  // SVG circular gauge geometry
-  const radius = 86;
+  // Circular gauge geometry
+  // Start from 210 degrees to 330 degrees (approx 72.5% arc)
+  const radius = 95;
   const strokeWidth = 14;
   const circumference = 2 * Math.PI * radius;
-  // Score percentage (clamp between 0 and 100)
+  // Arc length for 72.5%
   const clampedScore = Math.max(0, Math.min(100, score));
-  const strokeDashoffset = circumference - (clampedScore / 100) * circumference;
+  const strokeDashoffset = circumference - (clampedScore / 100) * circumference * 0.75;
 
   return (
-    <div className="flex flex-col items-center justify-center pt-8 pb-4 select-none animate-fade-in">
-      {/* Circular Progress Gauge */}
-      <div className="relative flex items-center justify-center h-56 w-56">
-        <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 220 220">
-          {/* Background circle track */}
+    <div className="flex flex-col items-center justify-between h-full py-6 select-none animate-fade-in w-full">
+      {/* Top Title: "Score" (matching Screenshot 3) */}
+      <h1 className="text-base sm:text-lg font-bold text-[#281E5D] tracking-tight">
+        Score
+      </h1>
+
+      {/* Neomorphic Circular Gauge */}
+      <div className="relative flex items-center justify-center h-64 w-64 sm:h-72 sm:w-72 my-auto">
+        {/* Embossed outer ring background */}
+        <div className="absolute inset-4 rounded-full bg-[#F1EFFD] shadow-[inset_0_4px_12px_rgba(108,74,232,0.12),0_8px_20px_rgba(255,255,255,0.8)] border-[10px] border-[#E2DEFA]/70" />
+
+        <svg className="h-full w-full -rotate-135 transform" viewBox="0 0 240 240">
+          {/* Base track */}
           <circle
-            cx="110"
-            cy="110"
+            cx="120"
+            cy="120"
             r={radius}
             fill="none"
-            stroke="#EDE9FE"
+            stroke="#E2DEFA"
             strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * 0.25}
+            strokeLinecap="round"
           />
-          {/* Active progress stroke */}
+          {/* Active purple arc */}
           <circle
-            cx="110"
-            cy="110"
+            cx="120"
+            cy="120"
             r={radius}
             fill="none"
-            stroke="#6C5CE7"
+            stroke="#6C4AE8"
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -54,29 +65,25 @@ export function EmpathyScoreHero({
           />
         </svg>
 
-        {/* Center content inside circular gauge */}
+        {/* Center Score Number: "72.5" */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#1E1B4B] tabular-nums font-sans">
+          <span className="text-5xl sm:text-6xl font-extrabold tracking-tight text-[#19104A] tabular-nums font-sans">
             {displayScore}
-          </span>
-          <span className="text-xs sm:text-sm font-semibold tracking-wide text-text-secondary mt-1">
-            Score
           </span>
         </div>
       </div>
 
-      {/* Swipe up prompt with animated chevrons */}
+      {/* Bottom prompt: "Swipe up to see metrics ︽" */}
       <button
         type="button"
         onClick={onSwipeUp}
-        aria-label="Swipe up to see detailed metrics"
-        className="mt-6 flex flex-col items-center gap-1 text-xs font-semibold text-text-secondary hover:text-primary transition-colors cursor-pointer group"
+        aria-label="Swipe up to see metrics"
+        className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#19104A] hover:text-[#6C4AE8] transition-colors cursor-pointer group py-2"
       >
-        <div className="flex flex-col items-center -space-y-1 text-primary group-hover:-translate-y-0.5 transition-transform">
-          <ChevronUp className="h-4 w-4" />
-          <ChevronUp className="h-4 w-4 -mt-2.5 opacity-60" />
-        </div>
-        <span>{isExpanded ? "Hide detailed metrics" : "Swipe up to see metrics"}</span>
+        <span>{isExpanded ? "Hide metrics" : "Swipe up to see metrics"}</span>
+        <span className="text-[#6C4AE8] font-bold text-base leading-none group-hover:-translate-y-1 transition-transform">
+          ︽
+        </span>
       </button>
     </div>
   );

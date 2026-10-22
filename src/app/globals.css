@@ -3,26 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f6fd;
+  --background: #f1effd;
   --surface: #ffffff;
-  --surface-muted: #f0edfe;
-  --surface-blue: #ede9fe;
-  --text: #1e1b4b;
-  --text-secondary: #4338ca;
-  --text-muted: #6b7280;
-  --primary: #6c5ce7;
-  --primary-hover: #5b4bd8;
-  --border: #eae6fd;
-  --success: #10b981;
-  --success-surface: #e6f9f0;
+  --surface-muted: #ede9fc;
+  --surface-blue: #e0dcfa;
+  --text: #19104a;
+  --text-secondary: #281e5d;
+  --text-muted: #5f588a;
+  --primary: #6c4ae8;
+  --primary-hover: #5b3bd4;
+  --primary-disabled: #d8d3f8;
+  --primary-disabled-text: #b1a9e8;
+  --border: #e0dcfa;
+  --track: #e3e0f8;
+  --success: #22c55e;
+  --success-surface: #edf9f0;
   --warning: #f59e0b;
-  --warning-surface: #fef7e6;
+  --warning-surface: #fef8e7;
   --danger: #ef4444;
   --danger-surface: #fee2e2;
 
-  /* Metric Breakdown Segment Colors */
-  --metric-accuracy: #10b981;
-  --metric-depth: #3b82f6;
+  /* Metric Breakdown Tri-Color Segments */
+  --metric-accuracy: #22c55e;
+  --metric-depth: #0ea5e9;
   --metric-relevance: #f97316;
 }
 
@@ -36,7 +39,10 @@
   --text-muted: #9ca3af;
   --primary: #818cf8;
   --primary-hover: #6366f1;
+  --primary-disabled: #37306b;
+  --primary-disabled-text: #6b63a6;
   --border: #2d2654;
+  --track: #2a2250;
   --success: #34d399;
   --success-surface: #064e3b33;
   --warning: #fbbf24;
@@ -57,18 +63,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Concentric Ripple Animation for Hero Microphone */
+/* Concentric Ripple Soundwaves for Hero Microphone */
 @keyframes ripple-wave-1 {
   0% {
     transform: scale(0.9);
-    opacity: 0.8;
+    opacity: 0.85;
   }
   50% {
-    transform: scale(1.25);
-    opacity: 0.45;
+    transform: scale(1.3);
+    opacity: 0.5;
   }
   100% {
-    transform: scale(1.55);
+    transform: scale(1.65);
     opacity: 0;
   }
 }
@@ -76,14 +82,14 @@ body {
 @keyframes ripple-wave-2 {
   0% {
     transform: scale(0.9);
-    opacity: 0.7;
+    opacity: 0.75;
   }
   50% {
-    transform: scale(1.4);
+    transform: scale(1.5);
     opacity: 0.35;
   }
   100% {
-    transform: scale(1.85);
+    transform: scale(2.0);
     opacity: 0;
   }
 }
@@ -91,34 +97,44 @@ body {
 @keyframes ripple-wave-3 {
   0% {
     transform: scale(0.9);
-    opacity: 0.5;
+    opacity: 0.6;
   }
   50% {
-    transform: scale(1.6);
+    transform: scale(1.7);
     opacity: 0.2;
   }
   100% {
-    transform: scale(2.2);
+    transform: scale(2.4);
     opacity: 0;
   }
 }
 
 .animate-ripple-1 {
-  animation: ripple-wave-1 2.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  animation: ripple-wave-1 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
 }
 
 .animate-ripple-2 {
-  animation: ripple-wave-2 2.4s cubic-bezier(0, 0.2, 0.8, 1) infinite 0.7s;
+  animation: ripple-wave-2 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite 0.6s;
 }
 
 .animate-ripple-3 {
-  animation: ripple-wave-3 2.4s cubic-bezier(0, 0.2, 0.8, 1) infinite 1.4s;
+  animation: ripple-wave-3 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite 1.2s;
+}
+
+/* Caret blink for text typing mode */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-caret {
+  animation: blink 1s step-end infinite;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {

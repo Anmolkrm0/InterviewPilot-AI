@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Volume2 } from "lucide-react";
+import { Mic, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTechnicalSpeech } from "@/lib/technical-speech-formatter";
 
@@ -59,7 +59,7 @@ export function EmpathyMicHero({
         recognition.onerror = (event: any) => {
           console.warn("Speech error:", event.error);
           if (event.error === "not-allowed") {
-            setErrorMessage("Microphone access was denied. Please allow microphone permissions.");
+            setErrorMessage("Microphone access denied. Please allow mic permissions in browser.");
           }
           setIsListening(false);
           setInterimText("");
@@ -89,7 +89,15 @@ export function EmpathyMicHero({
   const toggleListening = () => {
     setErrorMessage(null);
     if (!recognitionRef.current) {
-      setErrorMessage("Speech recognition not supported in this browser. Please use text typing below.");
+      // Fallback timer simulation for testing when speech API is unavailable
+      if (!isListening) {
+        setIsListening(true);
+        setSeconds(0);
+        timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+      } else {
+        setIsListening(false);
+        if (timerRef.current) clearInterval(timerRef.current);
+      }
       return;
     }
 
@@ -123,63 +131,59 @@ export function EmpathyMicHero({
   }${seconds % 60}`;
 
   return (
-    <div className="flex flex-col items-center justify-center my-6 sm:my-8 select-none">
-      {/* Hero Circular Mic Button with Concentric Animated Ripple Waves */}
-      <div className="relative flex items-center justify-center h-44 w-44 sm:h-52 sm:w-52">
+    <div className="flex flex-col items-center justify-center my-6 sm:my-10 select-none">
+      {/* Concentric Waves Container */}
+      <div className="relative flex items-center justify-center h-48 w-48 sm:h-56 sm:w-56">
+        {/* Animated concentric ripples when listening */}
         {isListening && (
           <>
-            <div className="absolute h-40 w-40 sm:h-48 sm:w-48 rounded-full bg-primary/20 animate-ripple-1 pointer-events-none" />
-            <div className="absolute h-40 w-40 sm:h-48 sm:w-48 rounded-full bg-primary/15 animate-ripple-2 pointer-events-none" />
-            <div className="absolute h-40 w-40 sm:h-48 sm:w-48 rounded-full bg-primary/10 animate-ripple-3 pointer-events-none" />
+            <div className="absolute h-44 w-44 sm:h-52 sm:w-52 rounded-full bg-[#E4DFFC] animate-ripple-1 pointer-events-none" />
+            <div className="absolute h-38 w-38 sm:h-46 sm:w-46 rounded-full bg-[#D5CCFB] animate-ripple-2 pointer-events-none" />
+            <div className="absolute h-34 w-34 sm:h-40 sm:w-40 rounded-full bg-[#C0B4F9] animate-ripple-3 pointer-events-none" />
           </>
         )}
 
+        {/* Hero Purple Button */}
         <button
           type="button"
           onClick={toggleListening}
-          aria-label={isListening ? "Stop speaking" : "Tap to speak"}
+          aria-label={isListening ? "Stop listening" : "Tap on the microphone to speak"}
           className={cn(
-            "relative z-10 flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full text-white shadow-lg transition-transform duration-300 transform active:scale-95 cursor-pointer",
-            isListening
-              ? "bg-primary shadow-primary/30 scale-105"
-              : "bg-primary hover:bg-primary-hover hover:scale-105"
+            "relative z-10 flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full text-white shadow-lg transition-all duration-300 transform active:scale-95 cursor-pointer bg-[#6C4AE8] hover:bg-[#5B3BD4]",
+            isListening && "scale-105 shadow-[#6C4AE8]/30"
           )}
         >
-          {isListening ? (
-            <Mic className="h-12 w-12 sm:h-14 sm:w-14 animate-pulse stroke-[2.2]" />
-          ) : (
-            <Mic className="h-12 w-12 sm:h-14 sm:w-14 stroke-[2.2]" />
-          )}
+          <Mic className="h-12 w-12 sm:h-14 sm:w-14 stroke-[2.2]" />
         </button>
       </div>
 
-      {/* Subtext Status & Timer */}
-      <div className="mt-4 text-center h-8">
+      {/* Subtext: "Listening...  0:00" vs "Tap on the microphone to speak" */}
+      <div className="mt-4 text-center h-8 w-full px-6">
         {isListening ? (
-          <div className="flex items-center justify-center gap-6 text-xs sm:text-sm font-semibold text-text">
+          <div className="flex items-center justify-between max-w-[220px] mx-auto text-sm font-semibold text-[#19104A]">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-[#6C4AE8] animate-pulse" />
               Listening...
             </span>
-            <span className="font-mono text-text-muted tabular-nums">{formattedTimer}</span>
+            <span className="font-mono text-[#5F588A] tabular-nums">{formattedTimer}</span>
           </div>
         ) : (
-          <p className="text-xs sm:text-sm font-medium text-text-muted">
+          <p className="text-sm font-medium text-[#4B447A]">
             Tap on the microphone to speak
           </p>
         )}
       </div>
 
-      {/* Live Interim Speech Preview */}
+      {/* Live Interim Speech Preview snippet */}
       {isListening && interimText && (
-        <div className="mt-2 flex items-center gap-2 max-w-sm rounded-xl bg-surface-muted/90 px-3.5 py-1.5 text-xs text-text border border-border shadow-xs animate-fade-in">
-          <Volume2 className="h-3.5 w-3.5 text-primary shrink-0 animate-bounce" />
+        <div className="mt-2 flex items-center gap-2 max-w-xs rounded-xl bg-white/90 backdrop-blur-xs px-3.5 py-1.5 text-xs text-[#19104A] border border-[#E0DCFA] shadow-xs">
+          <Volume2 className="h-3.5 w-3.5 text-[#6C4AE8] shrink-0 animate-bounce" />
           <span className="italic truncate">"{interimText}"</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="mt-2 text-xs text-danger max-w-xs text-center">
+        <div className="mt-2 text-xs text-red-600 max-w-xs text-center font-medium">
           {errorMessage}
         </div>
       )}

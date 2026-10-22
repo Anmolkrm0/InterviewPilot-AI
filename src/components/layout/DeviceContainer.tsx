@@ -32,7 +32,7 @@ export function DeviceContainer({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#F0EEF9] dark:bg-zinc-950 flex flex-col items-center">
+    <div className="min-h-screen bg-[#F1EFFD] dark:bg-zinc-950 flex flex-col items-center">
       {/* Device Viewport Toggle & Theme Selector (Desktop Only) */}
       {allowToggle && (
         <div className="hidden md:flex items-center gap-2 fixed top-4 right-6 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-border">

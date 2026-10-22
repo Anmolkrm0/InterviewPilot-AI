@@ -29,7 +29,7 @@ export function AudioReplayControl({ promptText }: AudioReplayControlProps) {
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(promptText);
-    utterance.rate = 0.95; // Calm, respectful pace
+    utterance.rate = 0.92; // Calm, respectful empathetic pacing
     utterance.pitch = 1.0;
 
     utterance.onend = () => setIsPlaying(false);
@@ -39,22 +39,20 @@ export function AudioReplayControl({ promptText }: AudioReplayControlProps) {
     window.speechSynthesis.speak(utterance);
   };
 
-  if (!isSupported) return null;
-
   return (
     <button
       type="button"
       onClick={handleToggleAudio}
-      title="Audio replay for question"
+      title="Replay question audio"
       aria-label="Replay question audio"
       className={cn(
         "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer",
         isPlaying
-          ? "bg-primary text-white shadow-xs animate-pulse"
-          : "bg-surface-muted text-primary hover:bg-surface-blue hover:scale-105"
+          ? "bg-[#6C4AE8] text-white shadow-sm animate-pulse"
+          : "bg-[#E0DCFA] text-[#48388C] hover:bg-[#D5CEF8] active:scale-95"
       )}
     >
-      {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+      {isPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4 stroke-[2.2]" />}
     </button>
   );
 }
